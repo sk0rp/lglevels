@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mercenary points / Credits — restart calculator</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --fg:#0f172a; --muted:#6b7280; --card:#fff; --border:#e7eaf1;
+      --shadow:0 8px 24px rgba(15,23,42,.08); --primary:#111827; --primary-600:#0b1220;
+      --accent:#2563eb; --ok:#047857; --warn:#b45309; --row:#f8fafc; --row-alt:#f1f5f9;
+      --hl:#eef2ff; --rb:#fff3c4; --radius:18px;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b1220; --fg:#e5e7eb; --muted:#9ca3af; --card:#101826; --border:#1f2937;
+        --shadow:0 10px 28px rgba(0,0,0,.35); --primary:#e5e7eb; --primary-600:#fff;
+        --row:#0d1626; --row-alt:#0f1a2b; --hl:#141f34; --rb:#3a2e00;
+      }
+    }
+    html,body{height:100%}
+    body{margin:0;padding:32px 16px;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui, Segoe UI, Roboto, Arial, sans-serif}
+    .container{max-width:1100px;margin:0 auto}
+    h1{margin:0 0 18px;font-size:clamp(20px,2.2vw,28px)}
+    .flex{display:flex;gap:10px;flex-wrap:wrap}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+
+    /* compact, responsive form grid */
+    .row{display:grid;grid-template-columns:1fr 140px 140px 160px auto;gap:12px}
+    @media (max-width:1100px){.row{grid-template-columns:1fr 1fr 1fr 1fr 1fr}}
+    @media (max-width:720px){.row{grid-template-columns:1fr 1fr}}
+    label{display:block;font-size:14px;color:var(--muted);margin:0 0 6px}
+    input,select,button{width:100%;box-sizing:border-box;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--row);color:var(--fg);transition:border-color .2s, box-shadow .2s, transform .02s}
+    input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent)}
+    button{background:var(--primary);color:#fff;border:none;font-weight:600}
+    button:hover{background:var(--primary-600)}
+    button:active{transform:translateY(1px)}
+    .headline{font-size:clamp(16px,1.8vw,20px);margin:16px 4px 4px}
+    .ok{color:var(--ok);font-weight:700}
+    .warn{color:var(--warn)}
+    .muted{color:var(--muted);font-size:13px;margin-top:10px}
+
+    /* compact tables */
+    .table-wrap{overflow:auto;border-radius:8px;border:1px solid var(--border);margin-top:6px}
+    table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+    thead th{position:sticky;top:0;z-index:1;background:var(--row-alt);color:var(--muted);text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600}
+    thead th:first-child,tbody td:first-child{text-align:left}
+    tbody tr:nth-child(odd){background:var(--row)}
+    tbody tr:nth-child(even){background:var(--row-alt)}
+    td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-variant-numeric:tabular-nums}
+    .na{color:#9ca3af}
+    .hl{background:var(--hl)!important}
+    .rb{background:var(--rb)!important}
+
+    /* tabs */
+    .tabs{margin-top:16px}
+    .tab-bar{display:flex;gap:8px;border-bottom:1px solid var(--border)}
+    .tab-btn{background:transparent;border:none;border-radius:8px 8px 0 0;padding:6px 10px;cursor:pointer;color:var(--muted);font-size:14px;transition:background .2s,color .2s}
+    .tab-btn:hover{background:var(--row-alt);color:var(--fg)}
+    .tab-btn.active{background:var(--row);color:var(--fg);border-bottom:2px solid var(--accent);font-weight:700}
+    .tab-panel{display:none;padding:12px 0}
+    .tab-panel.active{display:block}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media (max-width:900px){.two{grid-template-columns:1fr}}
+    .caption{font-weight:600;margin:6px 2px 4px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 data-i="title">Levels table for R0..R5 (based on points)</h1>
+
+    <form id="calcForm" class="card">
+      <div class="row">
+        <div>
+          <label for="points" data-i="ptsLabel">Points amount</label>
+          <input id="points" type="number" min="0" step="1" placeholder="e.g., 4,850" required />
+        </div>
+        <div>
+          <label for="currentR" data-i="curR">Current restart (R)</label>
+          <select id="currentR">
+            <option value="0">R0</option>
+            <option value="1">R1</option>
+            <option value="2">R2</option>
+            <option value="3">R3</option>
+            <option value="4">R4</option>
+            <option value="5">R5</option>
+          </select>
+        </div>
+        <div>
+          <label for="currentL" data-i="curL">Current level (L)</label>
+          <select id="currentL"></select>
+        </div>
+        <div>
+          <label for="color" data-i="colorLabel">Color</label>
+          <select id="color">
+            <option value="green">Green</option>
+            <option value="blue">Blue</option>
+            <option value="purple">Purple</option>
+            <option value="gold" selected>Gold</option>
+          </select>
+        </div>
+        <div style="align-self:end">
+          <button type="submit" data-i="btnCalc">Calculate</button>
+        </div>
+      </div>
+
+      <div class="flex" style="margin-top:10px">
+        <div class="headline" id="headline"></div>
+        <div style="margin-left:auto">
+          <select id="lang" title="Language">
+            <option value="pl">PL</option>
+            <option value="en" selected>EN</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="tableWrap"></div>
+
+      <p class="muted" data-i="footnote">
+        Restarts are available at: <b>L6</b>, <b>L11</b>, <b>L16</b>, <b>L21</b>, <b>L26</b>. Costs shown are cumulative “1&gt;n”.
+      </p>
+    </form>
+
+    <!-- reference tabs -->
+    <div class="card tabs">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="cum" data-i="tabCum">Cumulative (1&gt;n)</button>
+        <button class="tab-btn" data-tab="per" data-i="tabPer">Per-level (n&gt;n+1)</button>
+      </div>
+
+      <div id="tab-cum" class="tab-panel active">
+        <div class="two">
+          <div>
+            <div class="caption" data-i="mpCaption">Level up — mercenary points</div>
+            <div class="table-wrap" id="cum-mp"></div>
+          </div>
+          <div>
+            <div class="caption" data-i="crCaption">Level up — credits</div>
+            <div class="table-wrap" id="cum-cr"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-per" class="tab-panel">
+        <div class="two">
+          <div>
+            <div class="caption" data-i="mpCaption">Level up — mercenary points</div>
+            <div class="table-wrap" id="per-mp"></div>
+          </div>
+          <div>
+            <div class="caption" data-i="crCaption">Level up — credits</div>
+            <div class="table-wrap" id="per-cr"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- I18N ---------- */
+    const I18N = {
+      pl: {
+        title: "Tabela poziomów dla R0..R5 (zależnie od punktów)",
+        ptsLabel: "Liczba punktów",
+        colorLabel: "Kolor",
+        btnCalc: "Oblicz",
+        footnote: 'Restart jest dostępny na poziomach: <b>L6</b>, <b>L11</b>, <b>L16</b>, <b>L21</b>, <b>L26</b>. Koszty w tabeli wyników są skumulowane „1&gt;n”.',
+        tabCum: "Skumulowane (1>n)",
+        tabPer: "Jednostkowe (n>n+1)",
+        mpCaption: "Level up — punkty najemników",
+        crCaption: "Level up — kredyty",
+        summaryEnough: (pts, color, r, l, left, cost) =>
+          `Dla <b>${pts}</b> (punkty najemników, <b>${color}</b>) — restart przy każdej okazji: <span class="ok">R${r}L${l}</span> i <b>${left}</b> pozostało (koszt restartów: ${cost}).`,
+        summaryLow: "Za mało punktów, by przejść do L2.",
+        thRk: "Rk",
+        thRebootCostPts: "Koszt restartów (pkt naj.)",
+        thAfter: "Po restartach (pkt naj.)",
+        thLevel: "Osiągnięty poziom",
+        thNextRb: "Doc. poziom restartu",
+        thMissing: "Brakuje (pkt naj.)",
+        thSpendPts: "Wydane na poziomy (pkt naj.)",
+        thLeft: "Pozostałe (pkt naj.)",
+        thTotalCr: "Suma (kredyty)",
+        naRow: "niedostępny (za mało punktów lub brak danych)",
+        curR: "Aktualny restart (R)",
+        curL: "Aktualny poziom (L)"
+      },
+      en: {
+        title: "Levels table for R0..R5 (based on points)",
+        ptsLabel: "Points amount",
+        colorLabel: "Color",
+        btnCalc: "Calculate",
+        footnote: 'Restarts are available at: <b>L6</b>, <b>L11</b>, <b>L16</b>, <b>L21</b>, <b>L26</b>. Costs shown are cumulative “1&gt;n”.',
+        tabCum: "Cumulative (1>n)",
+        tabPer: "Per-level (n>n+1)",
+        mpCaption: "Level up — mercenary points",
+        crCaption: "Level up — credits",
+        summaryEnough: (pts, color, r, l, left, cost) =>
+          `For <b>${pts}</b> (mercenary points, <b>${color}</b>) — restarting at every opportunity: <span class="ok">R${r}L${l}</span> with <b>${left}</b> left (restart cost: ${cost}).`,
+        summaryLow: "Not enough points to reach L2.",
+        thRk: "Rk",
+        thRebootCostPts: "Restart cost (merc. pts)",
+        thAfter: "After restarts (merc. pts)",
+        thLevel: "Reached level",
+        thNextRb: "Next restart target",
+        thMissing: "Missing (merc. pts)",
+        thSpendPts: "Spent on levels (merc. pts)",
+        thLeft: "Leftover (merc. pts)",
+        thTotalCr: "Total (credits)",
+        naRow: "unavailable (not enough points or no data)",
+        curR: "Current restart (R)",
+        curL: "Current level (L)"
+      }
+    };
+    function setLang(lang){
+      document.documentElement.setAttribute('data-lang', lang);
+      const t = I18N[lang];
+      document.querySelectorAll('[data-i]').forEach(el=>{
+        const key = el.getAttribute('data-i');
+        if(['footnote','title','tabCum','tabPer','mpCaption','crCaption'].includes(key)) el.innerHTML = t[key];
+        else el.textContent = t[key];
+      });
+      if (window._lastRender) window._lastRender();
+      renderAllReferenceTables(lang);
+    }
+
+    /* ---------- Data (cumulative "1>n") ---------- */
+    const MP_CUM = {
+      green:[null,null,25,75,150,250,400,600,850,1150,1500,1950,2550,3300,4200,5300,6700,8700,11400,14900,19400,25400,32900,42400,54400,69400,87400],
+      blue:[null,null,25,75,150,250,380,540,730,950,1200,1530,1950,2450,3050,3800,4750,6150,8050,10450,13450,17150,21650,27150,34150,43150,55150,67300,79650,92200,105000,118100],
+      purple:[null,null,15,45,90,150,230,330,450,590,750,950,1200,1520,1920,2420,3070,3970,5070,6420,8220,10520,13520,17520,22520,28820,36820,45020,53420,62070,71020,80320],
+      gold:[null,null,5,15,30,50,90,150,230,330,450,600,800,1050,1370,1770,2270,2970,3820,4820,6120,7820,10020,12920,16620,21420,27420,33570,39870,46320,52970,59870]
+    };
+    const CR_CUM = {
+      green:[null,null,50,130,250,450,750,1250,2250,3750,5750,8750,12750,18750,26750,36750,49750,65750,84750,106750,131750,159750,191750,227750,267750,312750,362750],
+      blue:[null,null,100,400,1000,1900,3300,5300,8800,12800,17800,23800,31800,41800,53800,67800,83800,102800,124800,149800,177800,209800,245800,285800,330800,380800,435800,492800,552800,615800,681800,751800],
+      purple:[null,null,300,900,1800,3200,5100,7600,11600,16600,22600,29600,38600,49600,62600,78600,97600,119600,145600,175600,209600,247600,289600,336600,386600,446600,511600,578600,648600,721600,798600,880600],
+      gold:[null,null,600,1500,2900,4800,7300,10800,16300,23300,32300,43300,57300,74300,94300,118300,146300,178300,214300,254300,298300,346300,398300,455300,517300,585300,660300,740300,826300,919300,1020300,1130300]
+    };
+
+    /* ---------- Per-level (n>n+1) ---------- */
+    function toPerLevel(cum){
+      const out = {};
+      for(const color of Object.keys(cum)){
+        const arr = cum[color];
+        const per=[null,null];
+        if (!arr || arr.length < 3){ out[color]=per; continue; }
+        per[2] = arr[2];
+        for(let i=3;i<arr.length;i++){ per[i] = arr[i] - arr[i-1]; }
+        out[color]=per;
+      }
+      return out;
+    }
+    const MP_PER = toPerLevel(MP_CUM);
+    const CR_PER = toPerLevel(CR_CUM);
+
+    /* ---------- Calculator (relative to current R,L) ---------- */
+    const rebootLevels = [6,11,16,21,26]; // restart thresholds
+
+    // farthest level L such that (MP_CUM[L] - MP_CUM[L0]) <= budget
+    function highestFrom(color, L0, budget){
+      if (budget <= 0) return L0;
+      const arr = MP_CUM[color];
+      let lo = Math.max(2, L0), hi = arr.length-1, best = L0;
+      while (lo <= hi){
+        const mid = (lo + hi) >> 1;
+        const need = (arr[mid] - (L0>1 ? arr[L0] : 0));
+        if (need <= budget){ best = mid; lo = mid + 1; }
+        else hi = mid - 1;
+      }
+      return best;
+    }
+
+    function restartCum(color, table){
+      const costs = rebootLevels.map(L => table[color]?.[L]);
+      const cum = [0];
+      for(let i=0;i<costs.length;i++){
+        cum.push(Number.isFinite(costs[i]) ? cum[i] + costs[i] : NaN);
+      }
+      return cum; // cost of first k restarts (Rk)
+    }
+
+    function computeRows(bankPoints, color, currentR, currentL){
+      const rows=[];
+      const mpCum = restartCum(color, MP_CUM);
+      const crCum = restartCum(color, CR_CUM);
+
+      const paidMpRestarts = mpCum[Math.min(currentR, mpCum.length-1)] ?? 0;
+
+      for(let k=currentR; k<=5; k++){
+        const extraRestartMp = (mpCum[k] ?? NaN) - (mpCum[currentR] ?? 0);
+        const extraRestartCr = (crCum[k] ?? NaN) - (crCum[currentR] ?? 0);
+        if(!Number.isFinite(extraRestartMp) || bankPoints < extraRestartMp){
+          rows.push({k,availableFlag:false});
+          continue;
+        }
+        const budgetForLevels = bankPoints - extraRestartMp;
+        const L = highestFrom(color, currentL, budgetForLevels);
+        const addMpLevels = (L>1 ? MP_CUM[color][L] : 0) - (currentL>1 ? MP_CUM[color][currentL] : 0);
+        const mpLeft = budgetForLevels - addMpLevels;
+
+        const nextRestartLevel = rebootLevels[k-1] ?? null;
+        let missingMP = null;
+        if (nextRestartLevel){
+          if (L >= nextRestartLevel) missingMP = 0;
+          else {
+            const needMore = (MP_CUM[color][nextRestartLevel] - MP_CUM[color][L]);
+            missingMP = Math.max(0, needMore - mpLeft);
+          }
+        }
+
+        const addCrLevels = (L>1 ? CR_CUM[color][L] : 0) - (currentL>1 ? CR_CUM[color][currentL] : 0);
+        const crTotal = (Number.isFinite(extraRestartCr)?extraRestartCr:0) + addCrLevels;
+
+        rows.push({
+          k, availableFlag:true,
+          mpReboots: paidMpRestarts + extraRestartMp,
+          availableMP: bankPoints - extraRestartMp,
+          level:L, mpSpend: addMpLevels, mpLeft,
+          nextRestartLevel, missingMP,
+          crTotal: Number.isFinite(crTotal)?crTotal:null
+        });
+      }
+      return rows;
+    }
+
+    function renderResultTable(bankPoints, color, lang, currentR, currentL){
+      const t = I18N[lang];
+      const wrap = document.getElementById('tableWrap');
+      const rows = computeRows(bankPoints, color, currentR, currentL);
+      const best = rows.slice().reverse().find(r => r.availableFlag);
+      const fmt = (n)=> n.toLocaleString(lang==='pl'?'pl-PL':'en-US');
+
+      document.getElementById('headline').innerHTML = best
+        ? t.summaryEnough(fmt(bankPoints), color, best.k, best.level, fmt(best.mpLeft), fmt(best.mpReboots))
+        : t.summaryLow;
+
+      const html = `
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">${t.thRk}</th>
+              <th>${t.thRebootCostPts}</th>
+              <th>${t.thAfter}</th>
+              <th>${t.thLevel}</th>
+              <th>${t.thNextRb}</th>
+              <th>${t.thMissing}</th>
+              <th>${t.thSpendPts}</th>
+              <th>${t.thLeft}</th>
+              <th>${t.thTotalCr}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r=>{
+              if(!r.availableFlag){
+                return `<tr class="na"><td><b>R${r.k}</b></td>
+                  <td colspan="8" style="text-align:center">${t.naRow}</td></tr>`;
+              }
+              const hl = (best && r.k === best.k) ? ' hl' : '';
+              return `<tr class="${hl}">
+                <td><b>R${r.k}</b></td>
+                <td>${fmt(r.mpReboots)}</td>
+                <td>${fmt(r.availableMP)}</td>
+                <td><b>L${r.level}</b></td>
+                <td>${r.nextRestartLevel?`L${r.nextRestartLevel}`:'—'}</td>
+                <td>${r.missingMP!=null?fmt(r.missingMP):'—'}</td>
+                <td>${fmt(r.mpSpend)}</td>
+                <td>${fmt(r.mpLeft)}</td>
+                <td>${r.crTotal!=null?fmt(r.crTotal):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+      wrap.innerHTML = html;
+
+      window._lastRender = ()=>renderResultTable(bankPoints, color, lang, currentR, currentL);
+    }
+
+    /* ---------- Reference tables (with restart row highlighting) ---------- */
+    function makeRefTable(titleLeft, cols, rows, dataObj, lang, rebootRowPredicate){
+      const fmt = (n)=> n===null || n===undefined ? '—' :
+        n.toLocaleString(lang==='pl'?'pl-PL':'en-US');
+
+      let html = `<table>
+        <thead>
+          <tr>
+            <th style="text-align:left">${titleLeft}</th>
+            ${cols.map(c=>`<th>${c}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>`;
+
+      for (let i=2;i<rows.length;i++){
+        const label = rows[i];
+        const isRb = rebootRowPredicate(i, label);
+        html += `<tr class="${isRb?'rb':''}"><td><b>${label}</b></td>`;
+        for(const color of ['green','blue','purple','gold']){
+          const arr = dataObj[color] || [];
+          const val = arr[i] ?? null;
+          const na = (val==null) ? ' class="na"' : '';
+          html += `<td${na}>${fmt(val)}</td>`;
+        }
+        html += `</tr>`;
+      }
+      html += `</tbody></table>`;
+      return html;
+    }
+    function renderAllReferenceTables(lang='en'){
+      const rowsCum = [null,null,'1 > 2','1 > 3','1 > 4','1 > 5','1 > 6','1 > 7','1 > 8','1 > 9','1 > 10','1 > 11','1 > 12','1 > 13','1 > 14','1 > 15','1 > 16','1 > 17','1 > 18','1 > 19','1 > 20','1 > 21','1 > 22','1 > 23','1 > 24','1 > 25','1 > 26','1 > 27','1 > 28','1 > 29','1 > 30','1 > 31'];
+      const rowsPer = [null,null,'1 > 2','2 > 3','3 > 4','4 > 5','5 > 6','6 > 7','7 > 8','8 > 9','9 > 10','10 > 11','11 > 12','12 > 13','13 > 14','14 > 15','15 > 16','16 > 17','17 > 18','18 > 19','19 > 20','20 > 21','21 > 22','22 > 23','23 > 24','24 > 25','25 > 26','26 > 27','27 > 28','28 > 29','29 > 30','30 > 31'];
+      const colNames = ['Green','Blue','Purple','Gold'];
+      const rbCum = (i)=> [6,11,16,21,26].includes(i);
+      const rbPer = (i)=> [6,11,16,21,26].includes(i);
+
+      document.getElementById('cum-mp').innerHTML =
+        makeRefTable('Level', colNames, rowsCum, MP_CUM, lang, rbCum);
+      document.getElementById('cum-cr').innerHTML =
+        makeRefTable('Level', colNames, rowsCum, CR_CUM, lang, rbCum);
+      document.getElementById('per-mp').innerHTML =
+        makeRefTable('Level', colNames, rowsPer, MP_PER, lang, rbPer);
+      document.getElementById('per-cr').innerHTML =
+        makeRefTable('Level', colNames, rowsPer, CR_PER, lang, rbPer);
+    }
+
+    /* ---------- UI hooks ---------- */
+    const form = document.getElementById('calcForm');
+    const langSel = document.getElementById('lang');
+    const currentRSel = document.getElementById('currentR');
+    const currentLSel = document.getElementById('currentL');
+
+    // Fill L select (1..31)
+    (function fillLevels(){
+      for(let L=1; L<=31; L++){
+        const opt = document.createElement('option');
+        opt.value = String(L);
+        opt.textContent = 'L' + L;
+        currentLSel.appendChild(opt);
+      }
+      currentLSel.value = '1';
+    })();
+
+    // Localized required message
+    const pointsInput = document.getElementById('points');
+    pointsInput.addEventListener('invalid', function() {
+      const lang = document.documentElement.getAttribute('data-lang');
+      if (lang === 'pl') this.setCustomValidity('Proszę podać liczbę punktów.');
+      else this.setCustomValidity('Please enter the number of points.');
+    });
+    pointsInput.addEventListener('input', function() { this.setCustomValidity(''); });
+
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const lang = langSel.value;
+      const bankPoints = Math.max(0, Number(document.getElementById('points').value || 0));
+      const color = document.getElementById('color').value;
+      const currentR = parseInt(currentRSel.value, 10);
+      const currentL = parseInt(currentLSel.value, 10);
+      renderResultTable(bankPoints, color, lang, currentR, currentL);
+    });
+
+    langSel.addEventListener('change', ()=> setLang(langSel.value));
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // initial
+    renderAllReferenceTables('en');
+    setLang('en');
+
+    // quick sanity checks
+    (function quickCheck(){
+      // From baseline: bank=1944 MP, R0 L1, color gold -> R2L13 + 204 MP left
+      const rowsBase = computeRows(1944, 'gold', 0, 1);
+      const bestB = rowsBase.slice().reverse().find(r=>r.availableFlag);
+      console.assert(bestB && bestB.k===2 && bestB.level===13 && bestB.mpLeft===204, 'Baseline test failed', bestB);
+
+      // Example from your note: current R1 L2 with bank=53 (gold) -> for R3, target L16, missing 380
+      const rowsEx = computeRows(53, 'gold', 1, 2);
+      const r3 = rowsEx.find(r=>r.k===3);
+      console.assert(r3 && r3.nextRestartLevel===16 && r3.missingMP===380, 'Relative state test failed', r3);
+    })();
+  </script>
+</body>
+</html>
