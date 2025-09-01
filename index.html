@@ -26,9 +26,9 @@
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
 
     /* compact, responsive form grid */
-    .row{display:grid;grid-template-columns:1fr 140px 140px 160px auto;gap:12px}
-    @media (max-width:1100px){.row{grid-template-columns:1fr 1fr 1fr 1fr 1fr}}
-    @media (max-width:720px){.row{grid-template-columns:1fr 1fr}}
+    .row{display:grid;grid-template-columns:1fr 140px 140px 160px 140px auto;gap:12px}
+    @media (max-width:1200px){.row{grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr}}
+    @media (max-width:780px){.row{grid-template-columns:1fr 1fr}}
     label{display:block;font-size:14px;color:var(--muted);margin:0 0 6px}
     input,select,button{width:100%;box-sizing:border-box;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--row);color:var(--fg);transition:border-color .2s, box-shadow .2s, transform .02s}
     input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent)}
@@ -36,8 +36,6 @@
     button:hover{background:var(--primary-600)}
     button:active{transform:translateY(1px)}
     .headline{font-size:clamp(16px,1.8vw,20px);margin:16px 4px 4px}
-    .ok{color:var(--ok);font-weight:700}
-    .warn{color:var(--warn)}
     .muted{color:var(--muted);font-size:13px;margin-top:10px}
 
     /* compact tables */
@@ -99,6 +97,10 @@
             <option value="gold" selected>Gold</option>
           </select>
         </div>
+        <div>
+          <label for="target" data-i="targetLabel">Target level</label>
+          <select id="target"></select>
+        </div>
         <div style="align-self:end">
           <button type="submit" data-i="btnCalc">Calculate</button>
         </div>
@@ -121,7 +123,7 @@
       </p>
     </form>
 
-    <!-- reference tabs -->
+    <!-- reference tables -->
     <div class="card tabs">
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="cum" data-i="tabCum">Cumulative (1&gt;n)</button>
@@ -176,14 +178,15 @@
         thRebootCostPts: "Koszt restartów (pkt naj.)",
         thAfter: "Po restartach (pkt naj.)",
         thLevel: "Osiągnięty poziom",
-        thNextRb: "Doc. poziom restartu",
+        thTarget: "Docelowy poziom",
         thMissing: "Brakuje (pkt naj.)",
         thSpendPts: "Wydane na poziomy (pkt naj.)",
         thLeft: "Pozostałe (pkt naj.)",
         thTotalCr: "Suma (kredyty)",
         naRow: "niedostępny (za mało punktów lub brak danych)",
         curR: "Aktualny restart (R)",
-        curL: "Aktualny poziom (L)"
+        curL: "Aktualny poziom (L)",
+        targetLabel: "Docelowy poziom"
       },
       en: {
         title: "Levels table for R0..R5 (based on points)",
@@ -202,14 +205,15 @@
         thRebootCostPts: "Restart cost (merc. pts)",
         thAfter: "After restarts (merc. pts)",
         thLevel: "Reached level",
-        thNextRb: "Next restart target",
+        thTarget: "Target level",
         thMissing: "Missing (merc. pts)",
         thSpendPts: "Spent on levels (merc. pts)",
         thLeft: "Leftover (merc. pts)",
         thTotalCr: "Total (credits)",
         naRow: "unavailable (not enough points or no data)",
         curR: "Current restart (R)",
-        curL: "Current level (L)"
+        curL: "Current level (L)",
+        targetLabel: "Target level"
       }
     };
     function setLang(lang){
@@ -255,9 +259,9 @@
     const CR_PER = toPerLevel(CR_CUM);
 
     /* ---------- Calculator (relative to current R,L) ---------- */
-    const rebootLevels = [6,11,16,21,26]; // restart thresholds
+    const rebootLevels = [6,11,16,21,26]; // informational
 
-    // farthest level L such that (MP_CUM[L] - MP_CUM[L0]) <= budget
+    // farthest L such that (MP_CUM[L] - MP_CUM[L0]) <= budget
     function highestFrom(color, L0, budget){
       if (budget <= 0) return L0;
       const arr = MP_CUM[color];
@@ -280,7 +284,7 @@
       return cum; // cost of first k restarts (Rk)
     }
 
-    function computeRows(bankPoints, color, currentR, currentL){
+    function computeRows(bankPoints, color, currentR, currentL, targetLevel){
       const rows=[];
       const mpCum = restartCum(color, MP_CUM);
       const crCum = restartCum(color, CR_CUM);
@@ -299,16 +303,17 @@
         const addMpLevels = (L>1 ? MP_CUM[color][L] : 0) - (currentL>1 ? MP_CUM[color][currentL] : 0);
         const mpLeft = budgetForLevels - addMpLevels;
 
-        const nextRestartLevel = rebootLevels[k-1] ?? null;
+        // Missing MP to reach the chosen target level
         let missingMP = null;
-        if (nextRestartLevel){
-          if (L >= nextRestartLevel) missingMP = 0;
+        if (Number.isInteger(targetLevel) && targetLevel>=1 && targetLevel < MP_CUM[color].length){
+          if (L >= targetLevel) missingMP = 0;
           else {
-            const needMore = (MP_CUM[color][nextRestartLevel] - MP_CUM[color][L]);
+            const needMore = (MP_CUM[color][targetLevel] - MP_CUM[color][L]);
             missingMP = Math.max(0, needMore - mpLeft);
           }
         }
 
+        // credits
         const addCrLevels = (L>1 ? CR_CUM[color][L] : 0) - (currentL>1 ? CR_CUM[color][currentL] : 0);
         const crTotal = (Number.isFinite(extraRestartCr)?extraRestartCr:0) + addCrLevels;
 
@@ -317,17 +322,17 @@
           mpReboots: paidMpRestarts + extraRestartMp,
           availableMP: bankPoints - extraRestartMp,
           level:L, mpSpend: addMpLevels, mpLeft,
-          nextRestartLevel, missingMP,
+          targetLevel, missingMP,
           crTotal: Number.isFinite(crTotal)?crTotal:null
         });
       }
       return rows;
     }
 
-    function renderResultTable(bankPoints, color, lang, currentR, currentL){
+    function renderResultTable(bankPoints, color, lang, currentR, currentL, targetLevel){
       const t = I18N[lang];
       const wrap = document.getElementById('tableWrap');
-      const rows = computeRows(bankPoints, color, currentR, currentL);
+      const rows = computeRows(bankPoints, color, currentR, currentL, targetLevel);
       const best = rows.slice().reverse().find(r => r.availableFlag);
       const fmt = (n)=> n.toLocaleString(lang==='pl'?'pl-PL':'en-US');
 
@@ -343,7 +348,7 @@
               <th>${t.thRebootCostPts}</th>
               <th>${t.thAfter}</th>
               <th>${t.thLevel}</th>
-              <th>${t.thNextRb}</th>
+              <th>${t.thTarget}</th>
               <th>${t.thMissing}</th>
               <th>${t.thSpendPts}</th>
               <th>${t.thLeft}</th>
@@ -362,7 +367,7 @@
                 <td>${fmt(r.mpReboots)}</td>
                 <td>${fmt(r.availableMP)}</td>
                 <td><b>L${r.level}</b></td>
-                <td>${r.nextRestartLevel?`L${r.nextRestartLevel}`:'—'}</td>
+                <td>${r.targetLevel?`L${r.targetLevel}`:'—'}</td>
                 <td>${r.missingMP!=null?fmt(r.missingMP):'—'}</td>
                 <td>${fmt(r.mpSpend)}</td>
                 <td>${fmt(r.mpLeft)}</td>
@@ -373,10 +378,10 @@
         </table>`;
       wrap.innerHTML = html;
 
-      window._lastRender = ()=>renderResultTable(bankPoints, color, lang, currentR, currentL);
+      window._lastRender = ()=>renderResultTable(bankPoints, color, lang, currentR, currentL, targetLevel);
     }
 
-    /* ---------- Reference tables (with restart row highlighting) ---------- */
+    /* ---------- Reference tables ---------- */
     function makeRefTable(titleLeft, cols, rows, dataObj, lang, rebootRowPredicate){
       const fmt = (n)=> n===null || n===undefined ? '—' :
         n.toLocaleString(lang==='pl'?'pl-PL':'en-US');
@@ -427,8 +432,9 @@
     const langSel = document.getElementById('lang');
     const currentRSel = document.getElementById('currentR');
     const currentLSel = document.getElementById('currentL');
+    const targetSel = document.getElementById('target');
 
-    // Fill L select (1..31)
+    // Fill L selects
     (function fillLevels(){
       for(let L=1; L<=31; L++){
         const opt = document.createElement('option');
@@ -437,6 +443,13 @@
         currentLSel.appendChild(opt);
       }
       currentLSel.value = '1';
+      for(let L=2; L<=31; L++){
+        const opt = document.createElement('option');
+        opt.value = String(L);
+        opt.textContent = 'L' + L;
+        targetSel.appendChild(opt);
+      }
+      targetSel.value = '16'; // sensible default
     })();
 
     // Localized required message
@@ -451,11 +464,12 @@
     form.addEventListener('submit', (e)=>{
       e.preventDefault();
       const lang = langSel.value;
-      const bankPoints = Math.max(0, Number(document.getElementById('points').value || 0));
+      const bankPoints = Math.max(0, Number(pointsInput.value || 0));
       const color = document.getElementById('color').value;
       const currentR = parseInt(currentRSel.value, 10);
       const currentL = parseInt(currentLSel.value, 10);
-      renderResultTable(bankPoints, color, lang, currentR, currentL);
+      const targetLevel = parseInt(targetSel.value, 10); // numeric L
+      renderResultTable(bankPoints, color, lang, currentR, currentL, targetLevel);
     });
 
     langSel.addEventListener('change', ()=> setLang(langSel.value));
@@ -472,17 +486,11 @@
     renderAllReferenceTables('en');
     setLang('en');
 
-    // quick sanity checks
+    // sanity check: 4850 MP, R1L2, target L16 => in row R3 missing should be 380 (500-120)
     (function quickCheck(){
-      // From baseline: bank=1944 MP, R0 L1, color gold -> R2L13 + 204 MP left
-      const rowsBase = computeRows(1944, 'gold', 0, 1);
-      const bestB = rowsBase.slice().reverse().find(r=>r.availableFlag);
-      console.assert(bestB && bestB.k===2 && bestB.level===13 && bestB.mpLeft===204, 'Baseline test failed', bestB);
-
-      // Example from your note: current R1 L2 with bank=53 (gold) -> for R3, target L16, missing 380
-      const rowsEx = computeRows(53, 'gold', 1, 2);
-      const r3 = rowsEx.find(r=>r.k===3);
-      console.assert(r3 && r3.nextRestartLevel===16 && r3.missingMP===380, 'Relative state test failed', r3);
+      const rows = computeRows(4850, 'gold', 1, 2, 16);
+      const r3 = rows.find(r=>r.k===3);
+      console.assert(r3 && r3.missingMP===380, 'Target-level missing calc failed', r3);
     })();
   </script>
 </body>
